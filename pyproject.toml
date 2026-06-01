@@ -1,0 +1,10 @@
+[project]
+name = "media-downloader"
+version = "0.1.0"
+description = "Aplicación para descargar audio y video desde múltiples plataformas"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "streamlit>=1.58.0",
+    "yt-dlp>=2026.3.17",
+]
