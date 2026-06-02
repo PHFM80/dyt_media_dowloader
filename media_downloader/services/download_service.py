@@ -17,6 +17,11 @@ class DownloadService:
             return "Este video es privado y no se puede descargar."
         if "video unavailable" in message or "not available" in message:
             return "Este video no esta disponible y no se puede descargar."
+        if "http error 403" in message or "forbidden" in message:
+            return (
+                "YouTube bloqueo la descarga desde este entorno. "
+                "En Streamlit Cloud puede requerir un cliente alternativo, un proxy o probar de nuevo mas tarde."
+            )
         return str(exc)
 
     def _result_from_info(self, url: str, info: dict, status: str, message: str) -> DownloadResult:
