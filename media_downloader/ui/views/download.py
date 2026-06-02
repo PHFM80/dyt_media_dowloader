@@ -25,12 +25,12 @@ def render_download_view(assets: dict[str, Path | None]) -> None:
 
     title_col, image_col = st.columns([1.08, 0.92], vertical_alignment="center")
     with title_col:
-        st.title("Media Downloader")
+        st.markdown('<div class="download-header-title">Media Downloader</div>', unsafe_allow_html=True)
     with image_col:
         if assets["banner_dark"]:
-            render_local_image(assets["banner_dark"], max_height=50)
+            render_local_image(assets["banner_dark"], max_height=170, fit="cover")
         elif assets["logo_dark"]:
-            render_local_image(assets["logo_dark"], max_height=50)
+            render_local_image(assets["logo_dark"], max_height=170, fit="cover")
 
     project_name = st.text_input(
         "Nombre del proyecto",
