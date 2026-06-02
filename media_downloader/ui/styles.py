@@ -14,6 +14,10 @@ def inject_styles() -> None:
                 --surface: #F4F7FA;
                 --text: #1F2937;
                 --white: #FFFFFF;
+                color-scheme: light;
+            }
+            html, body {
+                color-scheme: light;
             }
             .stApp {
                 background:

@@ -14,7 +14,8 @@ wheels/
 htmlcov/
 
 # Streamlit
-.streamlit/
+.streamlit/*
+!.streamlit/config.toml
 
 # Virtual environments
 .venv/

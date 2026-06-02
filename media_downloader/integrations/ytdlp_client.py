@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from yt_dlp import YoutubeDL
@@ -18,6 +19,19 @@ class YtDlpClient:
             options["ffmpeg_location"] = self.ffmpeg.location
         return options
 
+    def _youtube_options(self) -> dict:
+        raw_clients = os.getenv("YOUTUBE_PLAYER_CLIENTS", "web_embedded,mweb,web")
+        clients = [client.strip() for client in raw_clients.split(",") if client.strip()]
+        if not clients:
+            clients = ["web_embedded", "mweb", "web"]
+        return {
+            "extractor_args": {
+                "youtube": {
+                    "player_client": clients,
+                }
+            }
+        }
+
     def _base_options(self) -> dict:
         options = {
             "paths": {"home": str(self.output_dir)},
@@ -28,6 +42,7 @@ class YtDlpClient:
             "restrictfilenames": False,
         }
         options.update(self._ffmpeg_options())
+        options.update(self._youtube_options())
         return options
 
     def extract_info(self, url: str, download: bool = False) -> dict:
