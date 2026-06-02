@@ -52,6 +52,15 @@ def inject_styles() -> None:
                 margin-top: 0.15rem;
                 margin-bottom: 0.2rem;
             }
+            .download-header-title {
+                font-size: clamp(2.15rem, 3.4vw, 3.35rem);
+                line-height: 1;
+                font-weight: 800;
+                color: var(--bg-dark);
+                margin: 0;
+                padding: 0;
+                text-align: center;
+            }
             .brand-copy {
                 font-size: 1.05rem;
                 line-height: 1.65;
@@ -116,4 +125,3 @@ def inject_styles() -> None:
         """,
         unsafe_allow_html=True,
     )
-

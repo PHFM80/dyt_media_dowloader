@@ -1,10 +1,33 @@
 from __future__ import annotations
 
+import base64
+import io
 from pathlib import Path
 
 import streamlit as st
+from PIL import Image
 
-from media_downloader.ui.common import render_local_image, scroll_to_top
+from media_downloader.ui.common import scroll_to_top, trim_image
+
+
+def render_home_image(image_path: Path) -> None:
+    with Image.open(image_path) as image:
+        trimmed = trim_image(image)
+        output = io.BytesIO()
+        trimmed.save(output, format="PNG")
+        image_data = base64.b64encode(output.getvalue()).decode("ascii")
+
+    st.markdown(
+        f"""
+        <div style="display:flex; align-items:center; justify-content:center; width:100%; height:320px; margin:0; padding:0; line-height:0; overflow:hidden; border-radius:24px;">
+            <img
+                src="data:image/png;base64,{image_data}"
+                style="display:block; width:100%; height:100%; object-fit:cover; object-position:center center; margin:0; padding:0;"
+            />
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_home_view(assets: dict[str, Path | None]) -> None:
@@ -33,9 +56,9 @@ def render_home_view(assets: dict[str, Path | None]) -> None:
 
     with hero_side:
         if assets["banner_dark"]:
-            render_local_image(assets["banner_dark"], max_height=120)
+            render_home_image(assets["banner_dark"])
         elif assets["logo_dark"]:
-            render_local_image(assets["logo_dark"], max_height=120)
+            render_home_image(assets["logo_dark"])
 
     st.write("")
     feature_col_1, feature_col_2, feature_col_3 = st.columns(3)
