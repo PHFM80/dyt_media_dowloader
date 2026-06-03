@@ -6,6 +6,7 @@ import streamlit as st
 
 from media_downloader.config import DOWNLOADS_ROOT
 from media_downloader.integrations.ffmpeg_tools import ffmpeg_is_available
+from media_downloader.integrations.ytdlp_client import YtDlpClient
 from media_downloader.models import DownloadProject
 from media_downloader.services.download_service import DownloadService
 from media_downloader.services.input_parser import parse_text_input
@@ -69,6 +70,54 @@ def render_download_view(assets: dict[str, Path | None]) -> None:
         st.info(f"URLs detectadas: {len(pending_urls)}")
         if pending_urls:
             st.code("\n".join(pending_urls), language="text")
+            
+            # Mostrar formatos disponibles para la primera URL
+            if mode == "video" and len(pending_urls) > 0:
+                first_url = pending_urls[0]
+                st.subheader("Formatos disponibles")
+                with st.spinner(f"Analizando formatos de: {first_url}..."):
+                    try:
+                        client = YtDlpClient(st.session_state.project.folder)
+                        formats_data = client.list_formats(first_url)
+                        
+                        # Verificar si hay error
+                        if "error" in formats_data:
+                            st.warning(f"⚠️ No se pudo analizar los formatos del video: {formats_data['error'][:100]}...")
+                            st.info("Se usará el **mejor formato automático disponible** al descargar.")
+                            st.session_state.selected_video_format = None
+                            st.session_state.selected_audio_format = None
+                        else:
+                            video_formats = formats_data.get("videos", [])
+                            audio_formats = formats_data.get("audios", [])
+                            is_combined = formats_data.get("combined", False)
+                            
+                            if not is_combined and video_formats and audio_formats:
+                                col_vid, col_aud = st.columns(2)
+                                with col_vid:
+                                    st.write("**Selecciona Video:**")
+                                    video_options = [f["label"] for f in video_formats]
+                                    selected_video = st.selectbox("Video", video_options, key="video_format")
+                                    selected_video_id = next(f["id"] for f in video_formats if f["label"] == selected_video)
+                                
+                                with col_aud:
+                                    st.write("**Selecciona Audio:**")
+                                    audio_options = [f["label"] for f in audio_formats]
+                                    selected_audio = st.selectbox("Audio", audio_options, key="audio_format")
+                                    selected_audio_id = next(f["id"] for f in audio_formats if f["label"] == selected_audio)
+                                
+                                st.session_state.selected_video_format = selected_video_id
+                                st.session_state.selected_audio_format = selected_audio_id
+                                st.success("✅ Formatos seleccionados correctamente")
+                            else:
+                                st.info("💡 El video tiene **formato combinado** (sin separación video/audio).")
+                                st.info("Se descargará automáticamente en la mejor calidad disponible.")
+                                st.session_state.selected_video_format = None
+                                st.session_state.selected_audio_format = None
+                    except Exception as exc:  # noqa: BLE001
+                        st.warning(f"⚠️ No se pudieron obtener los formatos: {str(exc)[:150]}...")
+                        st.info("Se usará el **mejor formato automático disponible** al descargar.")
+                        st.session_state.selected_video_format = None
+                        st.session_state.selected_audio_format = None
 
         ffmpeg_ready = ffmpeg_is_available()
         start_disabled = not pending_urls or not ffmpeg_ready
@@ -84,11 +133,17 @@ def render_download_view(assets: dict[str, Path | None]) -> None:
                 progress_bar.progress((index - 1) / max(total, 1))
                 status_box.write(f"Procesando {index}/{total}: {current_url}")
 
+            # Pasar formatos seleccionados si están disponibles
+            video_fmt = st.session_state.get("selected_video_format")
+            audio_fmt = st.session_state.get("selected_audio_format")
+            
             st.session_state.results = service.process_urls(
                 st.session_state.project,
                 pending_urls,
                 mode,
                 on_progress=on_progress,
+                video_format=video_fmt,
+                audio_format=audio_fmt,
             )
             progress_bar.progress(1.0)
             status_box.success("Proceso finalizado")
