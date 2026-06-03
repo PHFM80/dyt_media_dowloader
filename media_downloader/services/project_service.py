@@ -30,3 +30,25 @@ def create_project(project_name: str | None) -> DownloadProject:
 def ensure_download_root() -> Path:
     DOWNLOADS_ROOT.mkdir(parents=True, exist_ok=True)
     return DOWNLOADS_ROOT
+
+
+def list_project_files(project_folder: Path) -> list[dict]:
+    """Lista los archivos descargados en el proyecto, ordenados por fecha de modificación."""
+    if not project_folder.exists():
+        return []
+    
+    files = []
+    media_extensions = {".mp4", ".mkv", ".avi", ".webm", ".mp3", ".m4a", ".aac", ".flac", ".wav", ".ogg"}
+    
+    for file_path in project_folder.iterdir():
+        if file_path.is_file() and file_path.suffix.lower() in media_extensions:
+            stat_info = file_path.stat()
+            files.append({
+                "name": file_path.name,
+                "size": stat_info.st_size,
+                "modified": stat_info.st_mtime,
+                "path": str(file_path),
+            })
+    
+    # Ordenar por fecha de modificación (más recientes primero)
+    return sorted(files, key=lambda x: x["modified"], reverse=True)

@@ -61,7 +61,7 @@ class YtDlpClient:
             {
                 "format": "bestvideo*[ext=mp4]+bestaudio[ext=m4a]/bestvideo*+bestaudio/best[ext=mp4]/best",
                 "merge_output_format": "mp4",
-                "outtmpl": {"default": "%(title).200B [%(id)s].%(ext)s"},
+                "outtmpl": {"default": "%(title).200B [%(id)s] [%(upload_date)s].%(ext)s"},
             }
         )
         with YoutubeDL(options) as ydl:
@@ -72,7 +72,7 @@ class YtDlpClient:
         options.update(
             {
                 "format": "bestaudio/best",
-                "outtmpl": {"default": "%(title).200B [%(id)s].%(ext)s"},
+                "outtmpl": {"default": "%(title).200B [%(id)s] [%(upload_date)s].%(ext)s"},
                 "postprocessors": [
                     {
                         "key": "FFmpegExtractAudio",
@@ -135,7 +135,7 @@ class YtDlpClient:
             {
                 "format": format_spec,
                 "merge_output_format": "mp4",
-                "outtmpl": {"default": "%(title).200B [%(id)s].%(ext)s"},
+                "outtmpl": {"default": "%(title).200B [%(id)s] [%(upload_date)s].%(ext)s"},
                 "format_sort": ["vcodec:h264", "res", "acodec:aac"],
             }
         )
