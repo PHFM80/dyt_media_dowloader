@@ -10,8 +10,9 @@ from media_downloader.integrations.ytdlp_client import YtDlpClient
 from media_downloader.models import DownloadProject
 from media_downloader.services.download_service import DownloadService
 from media_downloader.services.input_parser import parse_text_input
-from media_downloader.ui.common import render_local_image, scroll_to_top
+from media_downloader.ui.common import render_local_image, scroll_to_top, format_file_size
 from media_downloader.ui.session import create_new_project, read_uploaded_urls
+from media_downloader.services.project_service import list_project_files
 
 
 def render_download_view(assets: dict[str, Path | None]) -> None:
@@ -165,6 +166,21 @@ def render_download_view(assets: dict[str, Path | None]) -> None:
                 else:
                     st.error(f"{result.url}: {result.message}")
 
+    st.write("")
+    st.divider()
+    
+    # Mostrar archivos acumulados en el proyecto
+    project_files = list_project_files(st.session_state.project.folder)
+    if project_files:
+        st.subheader("📁 Archivos acumulados en el proyecto")
+        st.info(f"Total: {len(project_files)} archivo(s) en `{st.session_state.project.name}`")
+        
+        for idx, file_info in enumerate(project_files, 1):
+            from datetime import datetime
+            mod_time = datetime.fromtimestamp(file_info["modified"]).strftime("%Y-%m-%d %H:%M:%S")
+            file_size = format_file_size(file_info["size"])
+            st.caption(f"{idx}. **{file_info['name']}** | {file_size} | {mod_time}")
+    
     st.write("")
     st.divider()
     left_spacer, center_col, right_spacer = st.columns([2, 1.1, 2])
