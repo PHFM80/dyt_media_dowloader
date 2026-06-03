@@ -21,6 +21,10 @@ def init_session_state() -> None:
         st.session_state.project_name = "descarga"
     if "view" not in st.session_state:
         st.session_state.view = "home"
+    if "selected_video_format" not in st.session_state:
+        st.session_state.selected_video_format = None
+    if "selected_audio_format" not in st.session_state:
+        st.session_state.selected_audio_format = None
 
 
 def create_new_project(name: str) -> None:

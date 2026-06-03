@@ -15,13 +15,25 @@ class DownloadService:
             return "Este video tiene derechos de copyright y no se puede descargar."
         if "private video" in message:
             return "Este video es privado y no se puede descargar."
-        if "video unavailable" in message or "not available" in message:
+        if "requested format is not available" in message:
+            return (
+                "❌ El video tiene restricciones o formatos limitados que yt-dlp no puede acceder. "
+                "Intenta:\n"
+                "1. Ejecutar en terminal: `uv run python -m yt_dlp -U` para actualizar yt-dlp\n"
+                "2. Probar otro video de YouTube\n"
+                "3. Esperar - YouTube cambia sus sistemas frecuentemente"
+            )
+        if "video unavailable" in message:
             return "Este video no esta disponible y no se puede descargar."
+        if "not available" in message:
+            return "El contenido no esta disponible."
         if "http error 403" in message or "forbidden" in message:
             return (
-                "YouTube bloqueo la descarga desde este entorno. "
+                "YouTube bloqueó la descarga desde este entorno. "
                 "En Streamlit Cloud puede requerir un cliente alternativo, un proxy o probar de nuevo mas tarde."
             )
+        if "unable to extract" in message or "extractor error" in message:
+            return "No se pudo extraer información del video. Puede estar limitado geográficamente o requerir autenticación."
         return str(exc)
 
     def _result_from_info(self, url: str, info: dict, status: str, message: str) -> DownloadResult:
@@ -34,6 +46,8 @@ class DownloadService:
         urls: list[str],
         mode: str,
         on_progress=None,
+        video_format: str | None = None,
+        audio_format: str | None = None,
     ) -> list[DownloadResult]:
         results: list[DownloadResult] = []
         client = YtDlpClient(project.folder)
@@ -65,11 +79,11 @@ class DownloadService:
                                 message="No se encontraron elementos en la playlist.",
                             )
                         )
-                    continue
+                        continue
 
                     for playlist_url in playlist_urls:
                         try:
-                            info = self.youtube.download(playlist_url, mode, client)
+                            info = self.youtube.download(playlist_url, mode, client, video_format, audio_format)
                             results.append(
                                 self._result_from_info(
                                     playlist_url,
@@ -90,7 +104,7 @@ class DownloadService:
                     continue
 
                 try:
-                    info = self.youtube.download(url, mode, client)
+                    info = self.youtube.download(url, mode, client, video_format, audio_format)
                     results.append(
                         DownloadResult(
                             url=url,

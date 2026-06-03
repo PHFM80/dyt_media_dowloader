@@ -20,14 +20,15 @@ class YtDlpClient:
         return options
 
     def _youtube_options(self) -> dict:
-        raw_clients = os.getenv("YOUTUBE_PLAYER_CLIENTS", "web_embedded,mweb,web")
+        raw_clients = os.getenv("YOUTUBE_PLAYER_CLIENTS", "web_embedded,mweb,web,android")
         clients = [client.strip() for client in raw_clients.split(",") if client.strip()]
         if not clients:
-            clients = ["web_embedded", "mweb", "web"]
+            clients = ["web_embedded", "mweb", "web", "android"]
         return {
             "extractor_args": {
                 "youtube": {
                     "player_client": clients,
+                    "player_skip": ["js", "configs"],
                 }
             }
         }
@@ -40,6 +41,8 @@ class YtDlpClient:
             "no_warnings": True,
             "windowsfilenames": True,
             "restrictfilenames": False,
+            # Configurar runtime de JavaScript para YouTube
+            "js_runtimes": {"node": {}},
         }
         options.update(self._ffmpeg_options())
         options.update(self._youtube_options())
@@ -52,10 +55,11 @@ class YtDlpClient:
             return ydl.extract_info(url, download=download)
 
     def download_video(self, url: str) -> dict:
+        """Descarga video con mejor formato automático (estrategia flexible)."""
         options = self._base_options()
         options.update(
             {
-                "format": "bestvideo+bestaudio/best",
+                "format": "bestvideo*[ext=mp4]+bestaudio[ext=m4a]/bestvideo*+bestaudio/best[ext=mp4]/best",
                 "merge_output_format": "mp4",
                 "outtmpl": {"default": "%(title).200B [%(id)s].%(ext)s"},
             }
@@ -76,6 +80,63 @@ class YtDlpClient:
                         "preferredquality": "192",
                     }
                 ],
+            }
+        )
+        with YoutubeDL(options) as ydl:
+            return ydl.extract_info(url, download=True)
+
+    def list_formats(self, url: str) -> dict[str, list[dict]]:
+        """Retorna los formatos disponibles separados en video y audio."""
+        options = self._base_options()
+        options["skip_download"] = True
+        try:
+            with YoutubeDL(options) as ydl:
+                info = ydl.extract_info(url, download=False)
+                formats = info.get("formats", [])
+                
+                videos = []
+                audios = []
+                
+                for fmt in formats:
+                    fmt_id = fmt.get("format_id", "")
+                    ext = fmt.get("ext", "")
+                    height = fmt.get("height")
+                    fps = fmt.get("fps", 30)
+                    abr = fmt.get("abr")
+                    
+                    # Video: tiene altura pero no tiene bitrate de audio
+                    if height and not abr:
+                        label = f"{fmt_id}: {height}p @ {fps}fps ({ext})"
+                        videos.append({"id": fmt_id, "label": label, "height": height})
+                    # Audio: tiene bitrate de audio pero no altura
+                    elif abr and not height:
+                        label = f"{fmt_id}: {abr}kbps ({ext})"
+                        audios.append({"id": fmt_id, "label": label, "bitrate": abr})
+                
+                # Si no encontramos video/audio separados, es un formato combinado
+                if not videos or not audios:
+                    return {"videos": [], "audios": [], "combined": True}
+                
+                return {
+                    "videos": sorted(videos, key=lambda x: x.get("height", 0), reverse=True),
+                    "audios": sorted(audios, key=lambda x: x.get("bitrate", 0), reverse=True),
+                    "combined": False,
+                }
+        except Exception as e:
+            # Si no puede obtener formatos, retornar que use el mejor automático
+            return {"videos": [], "audios": [], "combined": True, "error": str(e)}
+
+    def download_video_with_format(self, url: str, video_format: str, audio_format: str) -> dict:
+        """Descarga video con formato específico seleccionado por el usuario."""
+        options = self._base_options()
+        # Intentar primero con formato específico, si falla usar fallback flexible
+        format_spec = f"{video_format}+{audio_format}/bestvideo*+bestaudio/best"
+        options.update(
+            {
+                "format": format_spec,
+                "merge_output_format": "mp4",
+                "outtmpl": {"default": "%(title).200B [%(id)s].%(ext)s"},
+                "format_sort": ["vcodec:h264", "res", "acodec:aac"],
             }
         )
         with YoutubeDL(options) as ydl:

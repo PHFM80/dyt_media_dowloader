@@ -71,8 +71,10 @@ class YouTubePlatform:
                 urls.append(entry_url)
         return urls
 
-    def download(self, url: str, mode: str, client: YtDlpClient) -> dict:
+    def download(self, url: str, mode: str, client: YtDlpClient, video_format: str | None = None, audio_format: str | None = None) -> dict:
         normalized_url = normalize_youtube_url(url)
         if mode == "audio":
             return client.download_audio(normalized_url)
+        if video_format and audio_format:
+            return client.download_video_with_format(normalized_url, video_format, audio_format)
         return client.download_video(normalized_url)
