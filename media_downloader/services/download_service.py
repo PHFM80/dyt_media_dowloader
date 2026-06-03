@@ -32,11 +32,17 @@ class DownloadService:
         if "http error 403" in message or "forbidden" in message:
             return (
                 "⏳ YouTube bloqueó la descarga desde este entorno. "
-                "Se están aplicando reintentos automáticos...\n"
-                "Si el problema persiste, intenta:\n"
+                "Se están aplicando reintentos automáticos con diferentes estrategias...\n"
+                "Si el problema persiste después de 2-3 intentos:\n"
                 "1. Esperar 10 minutos y probar nuevamente\n"
                 "2. Probar otro video\n"
                 "3. Usar la app localmente en lugar de Cloud"
+            )
+        if "proxy" in message or "tunnel" in message:
+            return (
+                "⚠️ Error de proxy (servicio temporal no disponible). "
+                "Reintentos en progreso sin proxy...\n"
+                "Si persiste: prueba en 5 minutos"
             )
         if "unable to extract" in message or "extractor error" in message:
             return "No se pudo extraer información del video. Puede estar limitado geográficamente o requerir autenticación."
@@ -85,12 +91,20 @@ class DownloadService:
                 last_exception = exc
                 if not self._is_retryable_error(exc):
                     raise
-                
-                # Si error 403 (proxy bloqueado), intenta nuevo proxy
-                if "http error 403" in str(exc).lower():
+
+                # Si error 403 o proxy error, intenta nuevo proxy
+                error_msg = str(exc).lower()
+                if "http error 403" in error_msg or "forbidden" in error_msg:
                     current_proxy = client.proxy_manager.current_proxy
                     client.proxy_manager.mark_proxy_failed(current_proxy)
-                
+                    # Forzar obtener nuevo proxy en siguiente reintento
+                    _ = client.proxy_manager.get_proxy(force_update=True)
+                elif "proxy" in error_msg or "tunnel" in error_msg:
+                    # Proxy error, marcar como fallido
+                    current_proxy = client.proxy_manager.current_proxy
+                    client.proxy_manager.mark_proxy_failed(current_proxy)
+                    _ = client.proxy_manager.get_proxy(force_update=True)
+
                 if attempt < max_attempts:
                     delay = base_delay ** attempt
                     time.sleep(delay)
