@@ -85,6 +85,12 @@ class DownloadService:
                 last_exception = exc
                 if not self._is_retryable_error(exc):
                     raise
+                
+                # Si error 403 (proxy bloqueado), intenta nuevo proxy
+                if "http error 403" in str(exc).lower():
+                    current_proxy = client.proxy_manager.current_proxy
+                    client.proxy_manager.mark_proxy_failed(current_proxy)
+                
                 if attempt < max_attempts:
                     delay = base_delay ** attempt
                     time.sleep(delay)

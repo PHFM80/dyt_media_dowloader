@@ -6,12 +6,29 @@ from pathlib import Path
 from yt_dlp import YoutubeDL
 
 from media_downloader.integrations.ffmpeg_tools import discover_ffmpeg_binaries
+from media_downloader.integrations.proxy_manager import ProxyManager
 
 
 class YtDlpClient:
     def __init__(self, output_dir: Path):
         self.output_dir = output_dir
         self.ffmpeg = discover_ffmpeg_binaries()
+        self.proxy_manager = ProxyManager()
+
+    def _ffmpeg_options(self) -> dict:
+        options: dict = {}
+        if self.ffmpeg.location:
+            options["ffmpeg_location"] = self.ffmpeg.location
+        return options
+
+    def _proxy_options(self) -> dict:
+        """Retorna opciones de proxy para eludir bloqueos de YouTube."""
+        proxy = self.proxy_manager.get_proxy()
+        if not proxy:
+            return {}
+        return {
+            "proxy": proxy,
+        }
 
     def _ffmpeg_options(self) -> dict:
         options: dict = {}
@@ -58,6 +75,7 @@ class YtDlpClient:
         }
         options.update(self._ffmpeg_options())
         options.update(self._headers_options())
+        options.update(self._proxy_options())
         options.update(self._youtube_options())
         return options
 
