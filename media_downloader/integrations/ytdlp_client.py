@@ -19,11 +19,21 @@ class YtDlpClient:
             options["ffmpeg_location"] = self.ffmpeg.location
         return options
 
+    def _headers_options(self) -> dict:
+        """Headers que simulan navegador real para evitar bloqueos de YouTube."""
+        return {
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            }
+        }
+
     def _youtube_options(self) -> dict:
-        raw_clients = os.getenv("YOUTUBE_PLAYER_CLIENTS", "web_embedded,mweb,web,android")
+        raw_clients = os.getenv("YOUTUBE_PLAYER_CLIENTS", "mweb,web,android,ios")
         clients = [client.strip() for client in raw_clients.split(",") if client.strip()]
         if not clients:
-            clients = ["web_embedded", "mweb", "web", "android"]
+            clients = ["mweb", "web", "android", "ios"]
         return {
             "extractor_args": {
                 "youtube": {
@@ -41,10 +51,13 @@ class YtDlpClient:
             "no_warnings": True,
             "windowsfilenames": True,
             "restrictfilenames": False,
+            "socket_timeout": 30,
+            "retries": {"default": 3, "http": 5},
             # Configurar runtime de JavaScript para YouTube
             "js_runtimes": {"node": {}},
         }
         options.update(self._ffmpeg_options())
+        options.update(self._headers_options())
         options.update(self._youtube_options())
         return options
 
