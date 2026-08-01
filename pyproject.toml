@@ -1,0 +1,11 @@
+[project]
+name = "descargar-youtube"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "python-docx>=1.2.0",
+    "streamlit>=1.60.0",
+    "yt-dlp>=2026.7.4",
+]
