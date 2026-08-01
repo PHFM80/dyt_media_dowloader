@@ -2,7 +2,6 @@
 import streamlit as st
 import tempfile
 import os
-import time
 from services.download_manager_service import DownloadManagerService
 from services.project_manager_service import ProjectManagerService
 from services.url_cleaner_service import URLCleanerService
@@ -13,7 +12,7 @@ from utils.text_utils import clean_error_message
 
 
 def render_multiple_download():
-    if st.button("← Volver al inicio"):
+    if st.button("← Volver al inicio", key="btn_back_multi"):
         st.session_state.page = "Inicio"
         st.rerun()
     
@@ -28,38 +27,43 @@ def render_multiple_download():
 
     tab1, tab2 = st.tabs(["Pegar URLs", "Cargar archivo"])
     
+    # --- PESTAÑA 1: PEGAR URLs ---
     with tab1:
-        urls_text = st.text_area("Pega las URLs aquí (una por línea)", height=150)
-        if st.button("Procesar URLs", type="primary", disabled=st.session_state.get("is_processing", False)):
-            if not urls_text:
+        urls_text = st.text_area("Pega las URLs aquí (una por línea)", height=150, key="urls_text_area")
+        if st.button("Procesar URLs", type="primary", key="btn_process_urls", disabled=st.session_state.get("is_processing", False)):
+            if not urls_text.strip():
                 st.warning("Por favor ingresa al menos una URL")
-                return
-            st.session_state.is_processing = True
-            st.rerun()
-            
-    if st.session_state.get("is_processing") and tab1:
-        with st.spinner("Limpiando y validando URLs..."):
-            raw_urls = [line.strip() for line in urls_text.split('\n') if line.strip()]
+            else:
+                st.session_state.is_processing = True
+                st.session_state.urls_to_process = urls_text
+                st.rerun()
+                
+    if st.session_state.get("is_processing") and st.session_state.get("urls_to_process"):
+        with st.status("Limpiando y validando URLs...", expanded=True):
+            raw_urls = [line.strip() for line in st.session_state.urls_to_process.split('\n') if line.strip()]
             cleaned_urls = URLCleanerService.clean_urls(raw_urls)
             
         if not cleaned_urls:
             st.error("No se encontraron URLs válidas.")
             st.session_state.is_processing = False
+            st.session_state.urls_to_process = ""
             st.rerun()
         else:
             _process_urls(cleaned_urls)
             st.session_state.is_processing = False
+            st.session_state.urls_to_process = ""
             st.rerun()
 
+    # --- PESTAÑA 2: CARGAR ARCHIVO ---
     with tab2:
-        uploaded_file = st.file_uploader("Selecciona un archivo (TXT o DOCX)", type=['txt', 'docx'])
+        uploaded_file = st.file_uploader("Selecciona un archivo (TXT o DOCX)", type=['txt', 'docx'], key="file_uploader_multi")
         if uploaded_file:
             with tempfile.NamedTemporaryFile(delete=False, suffix=uploaded_file.name) as tmp:
                 tmp.write(uploaded_file.getvalue())
                 tmp_path = tmp.name
             
             try:
-                with st.spinner("Leyendo archivo..."):
+                with st.status("Leyendo archivo...", expanded=True):
                     urls = FileReaderService.read_file(tmp_path)
                     if not urls:
                         st.error("No se encontraron URLs en el archivo.")
@@ -68,6 +72,7 @@ def render_multiple_download():
             finally:
                 os.unlink(tmp_path)
 
+    # --- RENDERIZADO DE RESULTADOS Y DESCARGA ---
     if "multiple_info_list" in st.session_state and st.session_state.multiple_info_list:
         _render_results()
 
@@ -161,27 +166,28 @@ def _render_results():
     
     col1, col2, col3, col4 = st.columns([1, 1, 1, 1.2])
     with col1:
-        batch_type = st.radio("Tipo", ["Video", "Audio (MP3)"], horizontal=True, key="batch_type")
+        batch_type = st.radio("Tipo", ["Video", "Audio (MP3)"], horizontal=True, key="batch_type_radio")
     
     with col2:
         if batch_type == "Video":
-            batch_quality = st.selectbox("Calidad", ["best", "1080", "720", "480"], index=0, key="batch_q_vid")
+            batch_quality = st.selectbox("Calidad", ["best", "1080", "720", "480"], index=0, key="batch_q_vid_sel")
         else:
-            batch_quality = st.selectbox("Calidad", ["320", "192", "128", "best"], index=0, key="batch_q_aud")
+            batch_quality = st.selectbox("Calidad", ["320", "192", "128", "best"], index=0, key="batch_q_aud_sel")
             
     with col3:
-        max_workers = st.selectbox("Descargas simultáneas", [1, 2, 3, 4, 5], index=2, help="Recomendado: 3 para evitar bloqueos de red.")
+        max_workers = st.selectbox("Descargas simultáneas", [1, 2, 3, 4, 5], index=2, key="max_workers_sel", help="Recomendado: 3")
             
     with col4:
         st.markdown("<br>", unsafe_allow_html=True)
         is_downloading = st.session_state.get("is_downloading", False)
         
-        if st.button("🚀 Iniciar Descarga Masiva", type="primary", width="stretch", disabled=is_downloading):
+        if st.button("🚀 Iniciar Descarga Masiva", type="primary", width="stretch", disabled=is_downloading, key="btn_start_mass_download"):
             st.session_state.is_downloading = True
+            # Ejecutamos directamente sin st.rerun() para evitar desincronización del DOM
+            _execute_batch_download_parallel(batch_type, batch_quality, max_workers)
+            # Al terminar, reseteamos el estado
+            st.session_state.is_downloading = False
             st.rerun()
-            
-    if is_downloading:
-        _execute_batch_download_parallel(batch_type, batch_quality, max_workers)
 
 
 def _execute_batch_download_parallel(download_type: str, quality: str, max_workers: int):
@@ -208,9 +214,3 @@ def _execute_batch_download_parallel(download_type: str, quality: str, max_worke
         
         completed = sum(1 for t in tasks if t.status == "completed")
         st.success(f"✅ Proceso finalizado: {completed}/{len(urls)} archivos guardados.")
-        
-        st.session_state.is_downloading = False
-        if st.button("Nueva descarga múltiple"):
-            for key in ["multiple_info_list", "all_video_urls", "is_downloading"]:
-                st.session_state.pop(key, None)
-            st.rerun()
