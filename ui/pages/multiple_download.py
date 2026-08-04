@@ -9,13 +9,20 @@ from services.file_reader_service import FileReaderService
 from services.playlist_service import PlaylistService
 from ui.components.parallel_progress import render_parallel_progress
 from utils.text_utils import clean_error_message
-
+from ui.components.donation_button import render_donation_button
 
 def render_multiple_download():
     if st.button("← Volver al inicio", key="btn_back_multi"):
         st.session_state.page = "Inicio"
         st.rerun()
     
+    # Solo logo
+    col_left, col_center, col_right = st.columns([1, 2, 1])
+    with col_center:
+        st.image("assets/banners/TITULO_SUBTITULO_OSCURO.png", width=600)
+    render_donation_button()
+    
+    st.markdown("---")
     st.header("📋 Descarga Múltiple")
     
     project_name = st.text_input(
@@ -27,7 +34,6 @@ def render_multiple_download():
 
     tab1, tab2 = st.tabs(["Pegar URLs", "Cargar archivo"])
     
-    # --- PESTAÑA 1: PEGAR URLs ---
     with tab1:
         urls_text = st.text_area("Pega las URLs aquí (una por línea)", height=150, key="urls_text_area")
         if st.button("Procesar URLs", type="primary", key="btn_process_urls", disabled=st.session_state.get("is_processing", False)):
@@ -54,7 +60,6 @@ def render_multiple_download():
             st.session_state.urls_to_process = ""
             st.rerun()
 
-    # --- PESTAÑA 2: CARGAR ARCHIVO ---
     with tab2:
         uploaded_file = st.file_uploader("Selecciona un archivo (TXT o DOCX)", type=['txt', 'docx'], key="file_uploader_multi")
         if uploaded_file:
@@ -72,7 +77,6 @@ def render_multiple_download():
             finally:
                 os.unlink(tmp_path)
 
-    # --- RENDERIZADO DE RESULTADOS Y DESCARGA ---
     if "multiple_info_list" in st.session_state and st.session_state.multiple_info_list:
         _render_results()
 
@@ -183,9 +187,7 @@ def _render_results():
         
         if st.button("🚀 Iniciar Descarga Masiva", type="primary", width="stretch", disabled=is_downloading, key="btn_start_mass_download"):
             st.session_state.is_downloading = True
-            # Ejecutamos directamente sin st.rerun() para evitar desincronización del DOM
             _execute_batch_download_parallel(batch_type, batch_quality, max_workers)
-            # Al terminar, reseteamos el estado
             st.session_state.is_downloading = False
             st.rerun()
 

@@ -15,3 +15,7 @@ docs/
 # Claude Code y herramientas de agentes
 .claude/
 .agents/
+
+# Logs
+logs/
+*.log
